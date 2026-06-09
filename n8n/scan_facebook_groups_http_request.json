@@ -1,0 +1,44 @@
+{
+  "name": "SocialLead Facebook Groups Scan",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:3001/api/v1/scan-groups",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Token",
+              "value": "YsLS7X_wdy1ahvcpxs5WMf7TCui4qnoxl31KwWWLvwo"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"engine\": \"playwright\",\n  \"max_scrolls\": 8,\n  \"max_posts_per_group\": 50,\n  \"send_telegram\": true,\n  \"write_google_sheets\": true\n}",
+        "options": { "timeout": 600000 }
+      },
+      "id": "scan-groups",
+      "name": "Call SocialLead Scanner",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [{ "node": "Call SocialLead Scanner", "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}

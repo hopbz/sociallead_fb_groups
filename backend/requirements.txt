@@ -1,0 +1,14 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+python-dotenv==1.0.1
+SQLAlchemy==2.0.36
+psycopg2-binary==2.9.10
+playwright==1.49.1
+seleniumbase==4.33.14
+APScheduler==3.11.0
+requests==2.32.3
+gspread==6.1.4
+google-auth==2.37.0
+python-multipart==0.0.20

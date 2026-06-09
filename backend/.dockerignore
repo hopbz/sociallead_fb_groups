@@ -1,0 +1,9 @@
+.venv
+__pycache__
+*.pyc
+.env
+data/profiles
+data/logs
+data/output
+data/screenshots
+data/service_account.json

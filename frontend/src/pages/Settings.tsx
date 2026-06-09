@@ -1,0 +1,6 @@
+import { api } from '../lib/api';
+import { useAsync } from '../lib/hooks';
+import { Topbar } from '../components/Topbar';
+import { ErrorBox, Loading } from '../components/State';
+
+export function Settings() { const {data,loading,error,reload}=useAsync(api.settings,[]); return <div><Topbar title="Settings" subtitle="Cấu hình runtime đọc từ backend .env. Muốn chỉnh bền vững thì sửa file .env và restart backend." onRefresh={reload}/>{loading?<Loading/>:error?<ErrorBox message={error}/>:data&&<div className="grid md:grid-cols-2 gap-4">{Object.entries(data).map(([k,v])=><div key={k} className="card-premium p-4 flex items-center justify-between"><span className="text-sm font-black text-slate-600">{k}</span><span className="badge badge-info">{String(v)}</span></div>)}</div>}<div className="card-premium p-5 mt-5"><h3 className="font-black">n8n Endpoint</h3><pre className="bg-slate-950 text-slate-50 rounded-2xl p-4 overflow-auto text-xs mt-3">POST http://localhost:3001/api/v1/scan-groups{`\n`}Header: X-API-Token: API_TOKEN{`\n`}{`{\n  "engine": "cdp_playwright",\n  "max_scrolls": 8,\n  "max_posts_per_group": 50,\n  "send_telegram": true,\n  "write_google_sheets": true\n}`}</pre></div></div>; }
