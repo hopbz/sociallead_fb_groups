@@ -230,6 +230,5 @@ backend/data/profiles/
 
 - Chỉ thêm group mà tài khoản Facebook của em có quyền xem.
 - Không chạy tốc độ quá nhanh.
-- Không dùng tool này để vượt checkpoint/CAPTCHA.
 - Nếu Facebook yêu cầu xác minh, xử lý thủ công trên trình duyệt.
 - Với deploy server, đặt `HEADLESS=true` và dùng profile đã login từ local.

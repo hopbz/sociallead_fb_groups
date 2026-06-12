@@ -114,17 +114,23 @@ class FacebookGroupScanner:
         groups = self._group_urls(request)
         keywords = self._keywords(request)
 
-        if (
-            engine in ('playwright', 'cdp_playwright')
-            and groups
-            and not self.login_status(engine).get('logged_in')
-        ):
-            return self._fail_run_before_scan(
-                engine,
-                len(groups),
-                f'Facebook profile {engine} chưa đăng nhập hoặc session đã hết hạn. '
-                'Đăng nhập lại bằng Run Scanner > Mở đăng nhập.',
-            )
+        if engine in ('playwright', 'cdp_playwright') and groups:
+            try:
+                logged_in = bool(self.login_status(engine).get('logged_in'))
+            except Exception as exc:
+                logger.warning('Không thể kiểm tra session trước khi quét engine=%s: %s', engine, exc)
+                return self._fail_run_before_scan(
+                    engine,
+                    len(groups),
+                    f'Không thể kiểm tra session Facebook: {exc}',
+                )
+            if not logged_in:
+                return self._fail_run_before_scan(
+                    engine,
+                    len(groups),
+                    f'Facebook profile {engine} chưa đăng nhập hoặc session đã hết hạn. '
+                    'Đăng nhập lại bằng Chạy quét > Mở đăng nhập.',
+                )
 
         run = ScanRun(engine=engine, status='running', groups_total=len(groups))
         self.db.add(run)
@@ -226,7 +232,7 @@ class FacebookGroupScanner:
 
         append_posts_to_csv(self.settings.csv_output_file, inserted_posts)
         if request.send_telegram:
-            send_telegram_posts(self.settings, inserted_posts)
+            send_telegram_posts(self.settings, inserted_posts, self.db)
         if request.write_google_sheets:
             write_posts_to_google_sheets(self.settings, inserted_posts)
 

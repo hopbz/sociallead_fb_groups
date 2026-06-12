@@ -28,8 +28,13 @@ services:
       - .env
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg2://sociallead:sociallead_password@db:5432/sociallead_fb}
+      HEADLESS: "true"
+      CDP_PLAYWRIGHT_PROFILE_DIR: data/profiles/cdp_playwright_fb_docker
+      DISPLAY: ":99"
+      BROWSER_LOGIN_URL: http://localhost:${NOVNC_PORT:-6080}/vnc.html?autoconnect=true&resize=scale
     ports:
       - "${BACKEND_PORT:-3001}:3001"
+      - "127.0.0.1:${NOVNC_PORT:-6080}:6080"
     volumes:
       - ./backend/data:/app/data
     depends_on:
@@ -47,8 +52,5 @@ services:
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-3000}:80"
-    depends_on:
-      - backend
-
 volumes:
   postgres_data:

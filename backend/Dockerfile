@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libatk-bridge2.0-0 libatk1.0-0 libcups2 libdrm2 libxkbcommon0 \
     libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 \
     libpangocairo-1.0-0 libpango-1.0-0 libcairo2 libgtk-3-0 \
+    xvfb x11vnc fluxbox novnc websockify \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -19,8 +20,10 @@ RUN python -m playwright install chromium
 
 COPY app ./app
 COPY scripts ./scripts
+COPY docker-entrypoint.sh ./docker-entrypoint.sh
 
-RUN mkdir -p /app/data/logs /app/data/output /app/data/screenshots /app/data/profiles
+RUN chmod +x /app/docker-entrypoint.sh \
+    && mkdir -p /app/data/logs /app/data/output /app/data/screenshots /app/data/profiles
 
-EXPOSE 3001
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "3001"]
+EXPOSE 3001 6080
+CMD ["/app/docker-entrypoint.sh"]

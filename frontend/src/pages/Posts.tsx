@@ -1,12 +1,56 @@
-import { useState } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ExternalLink, Search } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAsync, formatDate } from '../lib/hooks';
 import { Topbar } from '../components/Topbar';
 import { Empty, ErrorBox, Loading } from '../components/State';
 
 export function Posts() {
-  const [q, setQ] = useState('');
-  const { data, loading, error, reload } = useAsync(() => api.posts(q), [q]);
-  return <div><Topbar title="Scraped Posts" subtitle="Danh sách bài viết đã qua anti-duplicate và keyword filter." onRefresh={reload}/><div className="card-premium p-4 mb-5"><input className="input" placeholder="Tìm trong nội dung bài viết..." value={q} onChange={e=>setQ(e.target.value)}/></div>{loading ? <Loading/> : error ? <ErrorBox message={error}/> : data?.length ? <div className="space-y-4">{data.map(p=><article key={p.id} className="card-premium p-5"><div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3"><div><h3 className="font-black">{p.group_name || 'Facebook Group'}</h3><div className="text-xs text-slate-400 mt-1">{formatDate(p.created_at)} • {p.engine} • {p.author || 'Unknown author'}</div></div><div className="flex gap-2">{p.matched_keywords && <span className="badge badge-info">{p.matched_keywords}</span>}{p.post_url && <a href={p.post_url} target="_blank" className="btn-soft"><ExternalLink size={16}/>Mở</a>}</div></div><p className="text-sm leading-6 text-slate-700 mt-4 whitespace-pre-wrap">{p.content}</p></article>)}</div> : <Empty title="Chưa có bài viết" desc="Chạy scanner để có dữ liệu."/>}</div>;
+  const [query, setQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const { data, loading, error, reload } = useAsync(() => api.posts(searchQuery), [searchQuery]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearchQuery(query.trim()), 300);
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  return (
+    <div>
+      <Topbar title="Bài viết đã quét" subtitle="Kho nội dung đã chống trùng lặp và đi qua bộ lọc keyword." onRefresh={reload} />
+      <div className="card-premium mb-5 p-4">
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#89918e]" size={17} />
+          <input
+            className="input search-input"
+            type="search"
+            aria-label="Tìm bài viết đã quét"
+            placeholder="Tìm trong nội dung, tác giả, keyword hoặc group..."
+            value={query}
+            onChange={event => setQuery(event.target.value)}
+          />
+        </div>
+      </div>
+      {loading ? <Loading /> : error ? <ErrorBox message={error} /> : data?.length ? (
+        <div className="space-y-4">
+          {data.map((post, index) => (
+            <article key={post.id} className="card-premium interactive-card row-reveal p-5 md:p-6" style={{ '--row-index': index } as React.CSSProperties}>
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div>
+                  <p className="eyebrow">Facebook source</p>
+                  <h2 className="mt-2 text-base font-semibold tracking-[-0.02em]">{post.group_name || 'Facebook Group'}</h2>
+                  <p className="mt-1 text-[11px] text-[#89918e]">{formatDate(post.created_at)} · {post.engine} · {post.author || 'Không rõ tác giả'}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {post.matched_keywords && <span className="badge badge-success">#{post.matched_keywords}</span>}
+                  {post.post_url && <a href={post.post_url} target="_blank" rel="noreferrer" className="btn-soft !px-3 !py-2"><ExternalLink size={15} />Mở bài viết</a>}
+                </div>
+              </div>
+              <p className="mt-5 whitespace-pre-wrap text-sm leading-7 text-[#52605d]">{post.content}</p>
+            </article>
+          ))}
+        </div>
+      ) : <Empty title="Chưa có bài viết" desc="Chạy scanner để thu thập dữ liệu đầu tiên." />}
+    </div>
+  );
 }

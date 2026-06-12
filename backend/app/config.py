@@ -19,19 +19,21 @@ class Settings(BaseSettings):
     database_url: str = 'sqlite:///./data/sociallead_local.db'
     cors_origins: str = 'http://localhost:3000,http://127.0.0.1:3000'
 
-    default_engine: EngineName = 'playwright'
+    default_engine: EngineName = 'cdp_playwright'  # nên dùng cdp_playwright để anti-detection tốt nhất
     headless: bool = False
-    browser_slow_mo_ms: int = 80
-    page_load_timeout_ms: int = 45_000
-    scroll_wait_seconds: float = 2.5
+    browser_slow_mo_ms: int = 120          # tăng lên để chậm hơn, tránh bị phát hiện
+    page_load_timeout_ms: int = 60_000
+    scroll_wait_seconds: float = 3.5       # chờ lâu hơn
     max_scrolls_per_group: int = 8
-    max_posts_per_group: int = 50
+    max_posts_per_group: int = 30
     retry_times: int = 2
     retry_sleep_seconds: float = 3
     login_wait_timeout_seconds: int = 300
     facebook_latest_sorting: bool = True
     uc_mode: bool = True
     cdp_reconnect_time: int = 3
+    cdp_chrome_executable: str = ''
+    browser_login_url: str = ''
 
     playwright_profile_dir: Path = Path('data/profiles/playwright_fb')
     playwright_storage_state_file: Path = Path('data/profiles/playwright_fb/storage_state.json')
@@ -52,6 +54,13 @@ class Settings(BaseSettings):
 
     scheduler_enabled: bool = False
     scheduler_interval_minutes: int = 30
+
+    # ========== CẤU HÌNH ANTI-DETECTION MỚI ==========
+    disable_automation_controlled: bool = True   # cho SeleniumBase
+    human_like_mouse_movement: bool = True
+    scroll_smooth: bool = True
+    min_scroll_delay_ms: int = 800
+    max_scroll_delay_ms: int = 2000
 
     def cors_list(self) -> list[str]:
         return [item.strip() for item in self.cors_origins.split(',') if item.strip()]

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { KeyRound, Radio, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, KeyRound, Radio, ShieldCheck } from 'lucide-react';
+import { motion } from 'motion/react';
 import { api, getApiBaseUrl, getApiToken, saveApiConnection } from '../lib/api';
 
 type Props = { onLogin: () => void };
@@ -25,38 +26,37 @@ export function Auth({ onLogin }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-[#EBF1ED] grid place-items-center p-5">
-      <div className="w-full max-w-5xl grid lg:grid-cols-[1.1fr_.9fr] gap-5">
-        <section className="bg-slate-950 text-white rounded-[2rem] p-8 md:p-10 shadow-xl overflow-hidden relative">
-          <div className="absolute -right-20 -top-20 h-64 w-64 bg-[#0866FF]/30 blur-3xl rounded-full" />
-          <div className="relative">
-            <div className="h-14 w-14 rounded-2xl bg-[#0866FF] grid place-items-center mb-6"><Radio size={28}/></div>
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight leading-tight">SocialLead OS<br/><span className="text-[#60A5FA]">Facebook Groups SaaS</span></h1>
-            <p className="text-slate-300 mt-5 leading-7 max-w-xl">Bản SaaS nhỏ đã được tinh gọn: chỉ quản lý group, keyword, chạy scraper, xem posts, run history, error logs, Telegram và Google Sheets.</p>
-            <div className="grid md:grid-cols-3 gap-3 mt-8">
-              {['Playwright engine', 'SeleniumBase fallback', 'PostgreSQL ready'].map(item => <div key={item} className="rounded-2xl bg-white/10 border border-white/10 p-4 font-bold text-sm">{item}</div>)}
+    <div className="app-canvas grid min-h-screen place-items-center p-4 md:p-7">
+      <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5, ease: [0.22, 1, 0.36, 1] }} className="grid w-full max-w-6xl overflow-hidden rounded-[28px] border border-[#dfe3dc] bg-white shadow-[0_30px_90px_rgba(16,43,42,.14)] lg:grid-cols-[1.08fr_.92fr]">
+        <section className="relative overflow-hidden bg-[#102b2a] p-8 text-white md:p-12">
+          <div className="absolute inset-0 opacity-40" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.055) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.055) 1px,transparent 1px)', backgroundSize: '40px 40px' }} />
+          <div className="absolute -right-16 -top-20 h-72 w-72 rounded-full bg-[#16776f]/55 blur-[95px]" />
+          <div className="relative flex h-full flex-col">
+            <span className="grid h-12 w-12 place-items-center rounded-xl bg-[#d9eee9] text-[#102b2a]"><Radio size={23} /></span>
+            <p className="mt-10 text-[11px] font-bold uppercase tracking-[0.18em] text-[#8fd0c4]">Facebook intelligence workspace</p>
+            <h1 className="mt-4 max-w-xl text-4xl font-medium leading-[1.08] tracking-[-0.055em] md:text-5xl">Biến tín hiệu cộng đồng thành dữ liệu có thể hành động.</h1>
+            <p className="mt-5 max-w-xl text-sm leading-7 text-white/52">Quản lý nguồn group, keyword, phiên quét và bài viết trong một trung tâm vận hành tập trung.</p>
+            <div className="mt-10 grid gap-3 sm:grid-cols-3">
+              {['Playwright engine', 'Keyword intelligence', 'PostgreSQL ready'].map(item => <div key={item} className="rounded-2xl border border-white/10 bg-white/[0.055] p-4 text-xs font-semibold text-white/72"><CheckCircle2 className="mb-4 text-[#8fd0c4]" size={17} />{item}</div>)}
             </div>
+            <p className="mt-auto pt-10 text-[10px] text-white/30">SocialLead OS · Local-first operations</p>
           </div>
         </section>
-        <section className="bg-white rounded-[2rem] p-7 md:p-8 border border-slate-200 shadow-sm">
-          <div className="h-12 w-12 rounded-2xl bg-blue-50 text-[#0866FF] grid place-items-center mb-4"><KeyRound/></div>
-          <h2 className="text-2xl font-black">Kết nối backend</h2>
-          <p className="text-sm text-slate-500 mt-2 leading-6">Nhập URL backend và API token trong file <b>.env</b>. Token được lưu local trong trình duyệt, không cần hard-code vào bundle frontend.</p>
-          <div className="space-y-4 mt-6">
-            <div>
-              <label className="text-sm font-black">Backend URL</label>
-              <input className="input mt-1" value={baseUrl} onChange={e=>setBaseUrl(e.target.value)} placeholder="http://localhost:3001" />
-            </div>
-            <div>
-              <label className="text-sm font-black">API Token</label>
-              <input className="input mt-1" value={token} onChange={e=>setToken(e.target.value)} placeholder="API_TOKEN trong .env" type="password" onKeyDown={e=>{ if(e.key==='Enter') void connect(); }} />
-            </div>
-            {error && <div className="rounded-2xl bg-red-50 border border-red-200 text-red-700 p-3 text-sm font-semibold whitespace-pre-wrap">{error}</div>}
-            <button className="btn-primary w-full" onClick={connect} disabled={busy || !baseUrl}>{busy ? 'Đang kiểm tra...' : 'Vào dashboard'}</button>
+
+        <section className="p-7 md:p-10 lg:p-12">
+          <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#d9eee9] text-[#16776f]"><KeyRound size={20} /></span>
+          <p className="eyebrow mt-7">Secure connection</p>
+          <h2 className="mt-2 text-3xl font-semibold tracking-[-0.045em]">Kết nối backend</h2>
+          <p className="mt-3 text-sm leading-6 text-[#66706d]">Nhập địa chỉ API và token trong file môi trường. Thông tin chỉ được lưu cục bộ trong trình duyệt.</p>
+          <div className="mt-7 space-y-5">
+            <label className="block"><span className="mb-2 block text-xs font-semibold text-[#52605d]">Backend URL</span><input className="input" value={baseUrl} onChange={event => setBaseUrl(event.target.value)} placeholder="http://localhost:3001" /></label>
+            <label className="block"><span className="mb-2 block text-xs font-semibold text-[#52605d]">API Token</span><input className="input" value={token} onChange={event => setToken(event.target.value)} placeholder="API_TOKEN trong .env" type="password" onKeyDown={event => { if (event.key === 'Enter') void connect(); }} /></label>
+            {error && <div className="rounded-xl border border-[#efc7c2] bg-[#fff4f2] p-3 text-xs font-semibold text-[#a33f38]">{error}</div>}
+            <button className="btn-primary min-h-12 w-full" onClick={connect} disabled={busy || !baseUrl}>{busy ? 'Đang xác minh kết nối...' : 'Vào workspace'}</button>
           </div>
-          <div className="rounded-2xl bg-green-50 text-green-700 p-4 mt-6 text-sm leading-6 flex gap-3"><ShieldCheck className="shrink-0"/> Chỉ dùng session trình duyệt đã đăng nhập thủ công. Không bypass CAPTCHA/checkpoint, không spam, không truy cập group không có quyền.</div>
+          <div className="mt-7 flex gap-3 rounded-2xl bg-[#f7f8f5] p-4 text-xs leading-5 text-[#66706d]"><ShieldCheck className="shrink-0 text-[#16776f]" size={19} />Chỉ sử dụng session đã đăng nhập thủ công; không vượt CAPTCHA, checkpoint hoặc quyền truy cập.</div>
         </section>
-      </div>
+      </motion.div>
     </div>
   );
 }

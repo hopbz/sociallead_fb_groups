@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import logging
+import os
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from sqlalchemy import desc, func, select
+from sqlalchemy import desc, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import verify_token
@@ -24,6 +26,8 @@ from app.schemas import (
     EngineName,
     ErrorLogOut,
     GroupSourceCreate,
+    GroupBatchCreate,
+    GroupBatchResult,
     GroupSourceOut,
     GroupSourceUpdate,
     KeywordCreate,
@@ -34,9 +38,17 @@ from app.schemas import (
     ScanResponse,
     ScanRunOut,
     SettingsOut,
+    TelegramSettingsOut,
+    TelegramSettingsUpdate,
+)
+from app.integrations.telegram import (
+    get_telegram_settings,
+    save_telegram_settings,
+    send_telegram_message,
 )
 
 router = APIRouter(prefix='/api/v1')
+logger = logging.getLogger(__name__)
 
 
 @router.get('/health')
@@ -109,6 +121,44 @@ def create_group(payload: GroupSourceCreate, settings: Settings = Depends(get_se
         raise HTTPException(status_code=400, detail=f'Không thể tạo group: {exc}') from exc
     db.refresh(group)
     return group
+
+
+@router.post('/groups/batch', response_model=GroupBatchResult, dependencies=[Depends(verify_token)])
+def create_groups_batch(payload: GroupBatchCreate, db: Session = Depends(get_db)):
+    normalized: dict[str, GroupSourceCreate] = {}
+    for item in payload.groups:
+        normalized[normalize_facebook_group_url(item.url)] = item
+
+    urls = list(normalized)
+    existing_urls = set(
+        db.execute(select(GroupSource.url).where(GroupSource.url.in_(urls))).scalars().all()
+    )
+    created: list[GroupSource] = []
+    for group_url, item in normalized.items():
+        if group_url in existing_urls:
+            continue
+        group_name = item.name.strip() or fallback_group_name(group_url)
+        metadata = FacebookGroupMetadata(name=group_name, privacy='unknown')
+        group = GroupSource(
+            name=group_name,
+            url=group_url,
+            is_active=item.is_active,
+            note=note_from_metadata(metadata, item.note),
+        )
+        db.add(group)
+        created.append(group)
+
+    try:
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=f'Không thể thêm danh sách group: {exc}') from exc
+    for group in created:
+        db.refresh(group)
+    return GroupBatchResult(
+        created=created,
+        skipped_urls=[url for url in urls if url in existing_urls],
+    )
 
 
 @router.post('/groups/refresh-metadata', response_model=list[GroupSourceOut], dependencies=[Depends(verify_token)])
@@ -198,8 +248,21 @@ def delete_keyword(keyword_id: str, db: Session = Depends(get_db)):
 @router.get('/posts', response_model=list[PostOut], dependencies=[Depends(verify_token)])
 def list_posts(limit: int = Query(50, ge=1, le=300), q: str | None = None, db: Session = Depends(get_db)):
     stmt = select(ScrapedPost).order_by(desc(ScrapedPost.created_at)).limit(limit)
-    if q:
-        stmt = select(ScrapedPost).where(ScrapedPost.content.ilike(f'%{q}%')).order_by(desc(ScrapedPost.created_at)).limit(limit)
+    query = (q or '').strip()
+    if query:
+        pattern = f'%{query}%'
+        stmt = (
+            select(ScrapedPost)
+            .where(or_(
+                ScrapedPost.content.ilike(pattern),
+                ScrapedPost.author.ilike(pattern),
+                ScrapedPost.group_name.ilike(pattern),
+                ScrapedPost.group_url.ilike(pattern),
+                ScrapedPost.matched_keywords.ilike(pattern),
+            ))
+            .order_by(desc(ScrapedPost.created_at))
+            .limit(limit)
+        )
     return db.execute(stmt).scalars().all()
 
 
@@ -227,21 +290,72 @@ def get_runtime_settings(settings: Settings = Depends(get_settings)):
         scheduler_interval_minutes=settings.scheduler_interval_minutes,
         telegram_enabled=settings.telegram_enabled,
         google_sheets_enabled=settings.google_sheets_enabled,
+        interactive_login_available=os.name == 'nt' or bool(os.environ.get('DISPLAY')),
+        browser_login_url=settings.browser_login_url or None,
     )
+
+
+@router.get('/telegram-settings', response_model=TelegramSettingsOut, dependencies=[Depends(verify_token)])
+def telegram_settings(settings: Settings = Depends(get_settings), db: Session = Depends(get_db)):
+    return TelegramSettingsOut(**get_telegram_settings(settings, db))
+
+
+@router.put('/telegram-settings', response_model=TelegramSettingsOut, dependencies=[Depends(verify_token)])
+def update_telegram_settings(
+    payload: TelegramSettingsUpdate,
+    settings: Settings = Depends(get_settings),
+    db: Session = Depends(get_db),
+):
+    save_telegram_settings(db, enabled=payload.enabled, chat_id=payload.chat_id)
+    return TelegramSettingsOut(**get_telegram_settings(settings, db))
+
+
+@router.post('/telegram-settings/test', dependencies=[Depends(verify_token)])
+def test_telegram_settings(settings: Settings = Depends(get_settings), db: Session = Depends(get_db)):
+    telegram = get_telegram_settings(settings, db)
+    try:
+        send_telegram_message(
+            settings,
+            str(telegram['chat_id']),
+            '<b>SocialLead OS</b>\nKết nối Telegram đã hoạt động.',
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {'ok': True, 'message': 'Đã gửi tin nhắn kiểm tra tới Telegram.'}
 
 
 @router.post('/login/{engine}', dependencies=[Depends(verify_token)])
 def login_profile(engine: EngineName, settings: Settings = Depends(get_settings), db: Session = Depends(get_db)):
     scanner = FacebookGroupScanner(settings, db)
-    scanner.ensure_login(engine)
-    status = scanner.login_status(engine)
+    try:
+        scanner.ensure_login(engine)
+        status = scanner.login_status(engine)
+    except Exception as exc:
+        logger.warning('Không thể mở đăng nhập cho engine=%s: %s', engine, exc)
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return {'ok': True, 'engine': engine, 'message': 'Login profile saved', **status}
 
 
 @router.get('/login-status/{engine}', response_model=LoginStatusOut, dependencies=[Depends(verify_token)])
 def login_status(engine: EngineName, settings: Settings = Depends(get_settings), db: Session = Depends(get_db)):
     scanner = FacebookGroupScanner(settings, db)
-    return LoginStatusOut(engine=engine, **scanner.login_status(engine))
+    try:
+        return LoginStatusOut(engine=engine, **scanner.login_status(engine))
+    except Exception as exc:
+        logger.warning('Không thể kiểm tra session cho engine=%s: %s', engine, exc)
+        return LoginStatusOut(
+            engine=engine,
+            logged_in=False,
+            profile_dir=str(
+                settings.cdp_playwright_profile_dir
+                if engine == 'cdp_playwright'
+                else settings.playwright_profile_dir
+                if engine == 'playwright'
+                else settings.seleniumbase_profile_dir
+            ),
+            storage_state_file=None,
+            message=str(exc),
+        )
 
 
 @router.post('/scan-groups', response_model=ScanResponse, dependencies=[Depends(verify_token)])

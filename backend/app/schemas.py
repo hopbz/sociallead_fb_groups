@@ -15,6 +15,10 @@ class GroupSourceCreate(BaseModel):
     note: str | None = None
 
 
+class GroupBatchCreate(BaseModel):
+    groups: list[GroupSourceCreate] = Field(min_length=1, max_length=200)
+
+
 class GroupSourceUpdate(BaseModel):
     name: str | None = Field(default=None, max_length=255)
     url: str | None = None
@@ -33,6 +37,11 @@ class GroupSourceOut(BaseModel):
     updated_at: datetime
 
     model_config = {'from_attributes': True}
+
+
+class GroupBatchResult(BaseModel):
+    created: list[GroupSourceOut]
+    skipped_urls: list[str]
 
 
 class KeywordCreate(BaseModel):
@@ -131,6 +140,19 @@ class SettingsOut(BaseModel):
     scheduler_interval_minutes: int
     telegram_enabled: bool
     google_sheets_enabled: bool
+    interactive_login_available: bool
+    browser_login_url: str | None = None
+
+
+class TelegramSettingsUpdate(BaseModel):
+    enabled: bool
+    chat_id: str = Field(default='', max_length=255)
+
+
+class TelegramSettingsOut(BaseModel):
+    enabled: bool
+    chat_id: str
+    bot_token_configured: bool
 
 
 class LoginStatusOut(BaseModel):
@@ -138,6 +160,7 @@ class LoginStatusOut(BaseModel):
     logged_in: bool
     profile_dir: str
     storage_state_file: str | None = None
+    message: str | None = None
 
 
 class DashboardOut(BaseModel):

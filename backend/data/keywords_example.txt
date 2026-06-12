@@ -1,4 +1,0 @@
-java
-spring boot
-thực tập
-tuyển dụng

@@ -120,17 +120,18 @@ def fetch_facebook_group_metadata(group_urls: list[str], settings: Settings) -> 
     results: dict[str, FacebookGroupMetadata] = {}
     timeout_ms = min(settings.page_load_timeout_ms, 15_000)
 
-    with sync_playwright() as p:
-        context = p.chromium.launch_persistent_context(
-            user_data_dir=str(settings.playwright_profile_dir),
-            headless=settings.headless,
-            slow_mo=settings.browser_slow_mo_ms,
-            viewport={'width': 1365, 'height': 850},
-            locale='vi-VN',
-        )
-        page = context.pages[0] if context.pages else context.new_page()
-        page.set_default_timeout(timeout_ms)
-        try:
+    try:
+        with sync_playwright() as p:
+            context = p.chromium.launch_persistent_context(
+                user_data_dir=str(settings.playwright_profile_dir),
+                headless=settings.headless,
+                slow_mo=settings.browser_slow_mo_ms,
+                viewport={'width': 1365, 'height': 850},
+                locale='vi-VN',
+                args=['--disable-dev-shm-usage', '--no-sandbox'],
+            )
+            page = context.pages[0] if context.pages else context.new_page()
+            page.set_default_timeout(timeout_ms)
             for group_url in group_urls:
                 try:
                     page.goto(group_url, wait_until='domcontentloaded', timeout=timeout_ms)
@@ -157,7 +158,8 @@ def fetch_facebook_group_metadata(group_urls: list[str], settings: Settings) -> 
                 except Exception as exc:
                     logger.info('Could not fetch Facebook group metadata url=%s error=%s', group_url, exc)
                     continue
-        finally:
             context.close()
+    except Exception as exc:
+        logger.warning('Facebook group metadata is unavailable; using URL fallback: %s', exc)
 
     return results

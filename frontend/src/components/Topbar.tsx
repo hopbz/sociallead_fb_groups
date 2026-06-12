@@ -1,15 +1,24 @@
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Sparkles } from 'lucide-react';
 
 type Props = { title: string; subtitle: string; onRefresh?: () => void };
 
 export function Topbar({ title, subtitle, onRefresh }: Props) {
   return (
-    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+    <header className="mb-7 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
       <div>
-        <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-950">{title}</h1>
-        <p className="text-sm text-slate-500 mt-1">{subtitle}</p>
+        <div className="mb-3 flex items-center gap-2">
+          <Sparkles size={15} className="text-[#16776f]" />
+          <span className="eyebrow">Social intelligence workspace</span>
+        </div>
+        <h1 className="text-3xl font-semibold tracking-[-0.045em] text-[#14201f] md:text-[40px] md:leading-[1.06]">{title}</h1>
+        <p className="mt-3 max-w-3xl text-sm leading-6 text-[#66706d]">{subtitle}</p>
       </div>
-      {onRefresh && <button className="btn-soft" onClick={onRefresh}><RefreshCw size={17} /> Refresh</button>}
-    </div>
+      {onRefresh && (
+        <button className="btn-soft shrink-0" onClick={onRefresh}>
+          <RefreshCw size={16} />
+          Làm mới
+        </button>
+      )}
+    </header>
   );
 }

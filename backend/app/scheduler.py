@@ -24,16 +24,19 @@ def start_scheduler(settings: Settings) -> None:
         logger.info('Scheduler scan job started')
         with SessionLocal() as db:
             scanner = FacebookGroupScanner(settings, db)
-            if (
-                settings.default_engine in ('playwright', 'cdp_playwright')
-                and not scanner.login_status(settings.default_engine).get('logged_in')
-            ):
-                logger.info(
-                    'Scheduler scan skipped because Facebook %s profile is not logged in',
-                    settings.default_engine,
-                )
-                return
-            scanner.scan(ScanRequest(engine=settings.default_engine))
+            try:
+                if (
+                    settings.default_engine in ('playwright', 'cdp_playwright')
+                    and not scanner.login_status(settings.default_engine).get('logged_in')
+                ):
+                    logger.info(
+                        'Scheduler scan skipped because Facebook %s profile is not logged in',
+                        settings.default_engine,
+                    )
+                    return
+                scanner.scan(ScanRequest(engine=settings.default_engine))
+            except Exception:
+                logger.exception('Scheduler scan job failed')
 
     _scheduler = BackgroundScheduler(timezone='Asia/Bangkok')
     _scheduler.add_job(
@@ -54,3 +57,4 @@ def stop_scheduler() -> None:
     global _scheduler
     if _scheduler and _scheduler.running:
         _scheduler.shutdown(wait=False)
+        logger.info('Scheduler stopped')

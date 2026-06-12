@@ -30,7 +30,7 @@ class RawFacebookPost:
     content: str
     engine: str
     scraped_at: datetime
-
+extended: dict = None
 
 def extract_post_id(url: str, group_url: str, content: str) -> str:
     for pattern in POST_URL_PATTERNS:
