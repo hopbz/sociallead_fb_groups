@@ -147,6 +147,7 @@ class SettingsOut(BaseModel):
 class TelegramSettingsUpdate(BaseModel):
     enabled: bool
     chat_id: str = Field(default='', max_length=255)
+    bot_token: str | None = Field(default=None, max_length=4096)
 
 
 class TelegramSettingsOut(BaseModel):

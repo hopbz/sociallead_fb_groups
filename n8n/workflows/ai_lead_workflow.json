@@ -1,0 +1,424 @@
+{
+  "name": "SocialLead - Facebook Group Lead Qualification",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every 30 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-980, 160]
+    },
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-980, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{($env.BACKEND_BASE_URL || 'http://host.docker.internal:3001') + '/api/v1/scan-groups'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Token",
+              "value": "={{$env.BACKEND_API_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  engine: 'cdp_playwright',\n  max_scrolls: 2,\n  max_posts_per_group: $('Get Lead Scoring Settings').first().json.max_posts_per_group,\n  send_telegram: false,\n  write_google_sheets: false\n} }}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "scan-groups",
+      "name": "Scan Groups",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-740, 240]
+    },
+    {
+      "parameters": {
+        "url": "={{($env.BACKEND_BASE_URL || 'http://host.docker.internal:3001') + '/api/v1/posts/unprocessed?limit=50'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Token",
+              "value": "={{$env.BACKEND_API_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-unprocessed",
+      "name": "Get Unprocessed Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-520, 240]
+    },
+    {
+      "parameters": {
+        "url": "={{($env.BACKEND_BASE_URL || 'http://host.docker.internal:3001') + '/api/v1/settings/lead-scoring'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Token",
+              "value": "={{$env.BACKEND_API_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-lead-scoring-settings",
+      "name": "Get Lead Scoring Settings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-520, 80]
+    },
+    {
+      "parameters": {
+        "jsCode": "const posts = items.flatMap((item) => Array.isArray(item.json) ? item.json : [item.json]);\n\nreturn posts.map((post) => ({\n  json: {\n    post_id: post.id,\n    group_name: post.group_name || 'Không rõ group',\n    group_url: post.group_url || '',\n    post_url: post.post_url || '',\n    author: post.author || 'Không rõ tác giả',\n    content: String(post.content || '').slice(0, 5000),\n  },\n}));"
+      },
+      "id": "normalize-posts",
+      "name": "Normalize Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-300, 240]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop-posts",
+      "name": "Loop Over Posts",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [-80, 240]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Ngành: {{ $('Get Lead Scoring Settings').first().json.niche_name }}\nTừ khóa tích cực: {{ $('Get Lead Scoring Settings').first().json.positive_keywords.join(', ') }}\nTừ khóa loại trừ: {{ $('Get Lead Scoring Settings').first().json.negative_keywords.join(', ') }}\nTone comment: {{ $('Get Lead Scoring Settings').first().json.comment_tone }}\n\nGroup: {{$json.group_name}}\nAuthor: {{$json.author}}\nPost URL: {{$json.post_url}}\n\nNội dung bài viết:\n{{$json.content}}\n\nHãy phân tích lead theo schema JSON đã yêu cầu.",
+        "options": {
+          "systemMessage": "Bạn là chuyên gia qualification lead B2B/B2C từ bài viết Facebook Group.\n\nNhiệm vụ:\n1. Đọc nội dung bài viết.\n2. Chấm điểm nhu cầu từ 1 đến 10.\n3. Phân loại giai đoạn nhu cầu.\n4. Viết 1 comment cá nhân hoá, tự nhiên, lịch sự, không spam.\n5. Không bịa thông tin.\n6. Không hứa hẹn quá mức.\n7. Không viết như bot.\n8. Không yêu cầu người dùng inbox ngay nếu ngữ cảnh chưa phù hợp.\n9. Không tự động đăng comment. Chỉ đề xuất comment cho người vận hành review.\n\nChỉ trả về JSON hợp lệ, không markdown, không giải thích ngoài JSON.\n\nSchema:\n{\n  \"score\": 1,\n  \"need_stage\": \"hot|warm|cold|not_lead\",\n  \"persona\": \"mô tả ngắn người đăng\",\n  \"pain_points\": [\"pain point 1\", \"pain point 2\"],\n  \"reason\": \"lý do chấm điểm\",\n  \"suggested_comment\": \"comment đề xuất tối đa 80 từ\",\n  \"do_not_contact\": false\n}"
+        }
+      },
+      "id": "lead-agent",
+      "name": "Lead Qualification Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [160, 320]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "openai-model",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [120, 540]
+    },
+    {
+      "parameters": {
+        "jsCode": "function safeParseJSON(value) {\n  if (value && typeof value === 'object') return value;\n\n  const text = String(value || '').trim();\n  try {\n    return JSON.parse(text);\n  } catch (error) {\n    const match = text.match(/\\{[\\s\\S]*\\}/);\n    if (!match) throw error;\n    return JSON.parse(match[0]);\n  }\n}\n\nreturn items.map((item) => {\n  const post = $('Loop Over Posts').item.json;\n  const aiRaw = item.json.output || item.json.text || item.json.response || item.json.message || item.json;\n  const ai = safeParseJSON(aiRaw);\n\n  return {\n    json: {\n      ...post,\n      score: Number(ai.score || 0),\n      need_stage: ai.need_stage || 'unknown',\n      persona: ai.persona || '',\n      pain_points: Array.isArray(ai.pain_points) ? ai.pain_points.join(', ') : String(ai.pain_points || ''),\n      reason: ai.reason || '',\n      suggested_comment: ai.suggested_comment || '',\n      do_not_contact: Boolean(ai.do_not_contact),\n    },\n  };\n});"
+      },
+      "id": "parse-ai",
+      "name": "Parse AI JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 320]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "score-condition",
+              "leftValue": "={{$json.score}}",
+              "rightValue": "={{$('Get Lead Scoring Settings').first().json.score_threshold}}",
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "contact-condition",
+              "leftValue": "={{$json.do_not_contact}}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "qualified",
+      "name": "Score >= 7",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [620, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{($env.BACKEND_BASE_URL || 'http://host.docker.internal:3001') + '/api/v1/leads'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Token",
+              "value": "={{$env.BACKEND_API_TOKEN}}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  post_id: $json.post_id,\n  group_name: $json.group_name,\n  group_url: $json.group_url,\n  post_url: $json.post_url,\n  author: $json.author,\n  content: $json.content,\n  score: $json.score,\n  need_stage: $json.need_stage,\n  persona: $json.persona,\n  pain_points: $json.pain_points,\n  reason: $json.reason,\n  suggested_comment: $json.suggested_comment\n} }}",
+        "options": {}
+      },
+      "id": "save-lead",
+      "name": "Save Lead",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [840, 220]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$env.TELEGRAM_CHAT_ID}}",
+        "text": "=🔥 Lead mới từ Facebook Group\n\n📌 Group: {{ $('Parse AI JSON').item.json.group_name }}\n👤 Tác giả: {{ $('Parse AI JSON').item.json.author }}\n⭐ Score: {{ $('Parse AI JSON').item.json.score }}/10\n🎯 Stage: {{ $('Parse AI JSON').item.json.need_stage }}\n\n🧠 Lý do:\n{{ $('Parse AI JSON').item.json.reason }}\n\n💬 Comment đề xuất:\n{{ $('Parse AI JSON').item.json.suggested_comment }}\n\n🔗 Link bài viết:\n{{ $('Parse AI JSON').item.json.post_url }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "telegram",
+      "name": "Notify Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1060, 220]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "={{($env.BACKEND_BASE_URL || 'http://host.docker.internal:3001') + '/api/v1/posts/' + $('Parse AI JSON').item.json.post_id + '/processed'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Token",
+              "value": "={{$env.BACKEND_API_TOKEN}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "mark-processed",
+      "name": "Mark Processed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1280, 400]
+    }
+  ],
+  "connections": {
+    "Every 30 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Get Lead Scoring Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Lead Scoring Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scan Groups": {
+      "main": [
+        [
+          {
+            "node": "Get Unprocessed Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Lead Scoring Settings": {
+      "main": [
+        [
+          {
+            "node": "Scan Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Unprocessed Posts": {
+      "main": [
+        [
+          {
+            "node": "Normalize Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Posts": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Posts": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Lead Qualification Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Lead Qualification Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lead Qualification Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse AI JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI JSON": {
+      "main": [
+        [
+          {
+            "node": "Score >= 7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score >= 7": {
+      "main": [
+        [
+          {
+            "node": "Save Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Lead": {
+      "main": [
+        [
+          {
+            "node": "Notify Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Telegram": {
+      "main": [
+        [
+          {
+            "node": "Mark Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark Processed": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "63ad46c8-3296-4b9f-98dd-9ca55e18c0c2",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

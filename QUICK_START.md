@@ -113,7 +113,7 @@ Truy cập:
 
 ### Bước 1: Thêm Facebook Groups
 1. Truy cập http://localhost:3000
-2. Đăng nhập (API_TOKEN mặc định: `YsLS7X_wdy1ahvcpxs5WMf7TCui4qnoxl31KwWWLvwo`)
+2. Đăng nhập bằng `API_TOKEN` do bạn cấu hình trong `.env`.
 3. Vào **Settings** → **Groups**
 4. Nhấn **+ Add Group**
 5. Dán URL Facebook Group, ví dụ:
@@ -157,7 +157,7 @@ File `.env` trong thư mục dự án:
 
 ```env
 # App
-API_TOKEN=YsLS7X_wdy1ahvcpxs5WMf7TCui4qnoxl31KwWWLvwo
+API_TOKEN=replace-with-a-long-random-token
 DEFAULT_ENGINE=cdp_playwright
 HEADLESS=false
 

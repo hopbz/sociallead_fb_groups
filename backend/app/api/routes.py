@@ -271,6 +271,28 @@ def list_runs(limit: int = Query(30, ge=1, le=100), db: Session = Depends(get_db
     return db.execute(select(ScanRun).order_by(desc(ScanRun.started_at)).limit(limit)).scalars().all()
 
 
+@router.delete('/runs', dependencies=[Depends(verify_token)])
+def clear_all_runs(db: Session = Depends(get_db)):
+    """Xóa toàn bộ lịch sử quét (scan_runs + error_logs liên quan)."""
+    deleted = db.execute(select(func.count(ScanRun.id))).scalar_one()
+    db.execute(select(ScanRun))  # eagerly load to trigger cascades via ORM if needed
+    db.query(ErrorLog).filter(ErrorLog.run_id.isnot(None)).delete(synchronize_session=False)
+    db.query(ScanRun).delete(synchronize_session=False)
+    db.commit()
+    return {'ok': True, 'deleted': deleted}
+
+
+@router.delete('/runs/{run_id}', dependencies=[Depends(verify_token)])
+def delete_run(run_id: str, db: Session = Depends(get_db)):
+    run = db.get(ScanRun, run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail='Run not found')
+    db.query(ErrorLog).filter(ErrorLog.run_id == run_id).delete(synchronize_session=False)
+    db.delete(run)
+    db.commit()
+    return {'ok': True}
+
+
 @router.get('/errors', response_model=list[ErrorLogOut], dependencies=[Depends(verify_token)])
 def list_errors(limit: int = Query(30, ge=1, le=100), db: Session = Depends(get_db)):
     return db.execute(select(ErrorLog).order_by(desc(ErrorLog.created_at)).limit(limit)).scalars().all()
@@ -306,7 +328,15 @@ def update_telegram_settings(
     settings: Settings = Depends(get_settings),
     db: Session = Depends(get_db),
 ):
-    save_telegram_settings(db, enabled=payload.enabled, chat_id=payload.chat_id)
+    save_telegram_settings(
+        db,
+        enabled=payload.enabled,
+        chat_id=payload.chat_id,
+        bot_token=payload.bot_token,
+        persist_env=True,
+    )
+    get_settings.cache_clear()
+    settings = get_settings()
     return TelegramSettingsOut(**get_telegram_settings(settings, db))
 
 

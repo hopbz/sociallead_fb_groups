@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { Clock3, Database, Gauge, LogOut, Play, Settings, Users } from 'lucide-react';
+import { Clock3, Database, Gauge, LogOut, Play, Settings, Target, Users } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
 import { Groups } from './pages/Groups';
@@ -9,6 +9,7 @@ import { Scanner } from './pages/Scanner';
 import { Settings as SettingsPage } from './pages/Settings';
 import { History } from './pages/History';
 import { Auth } from './pages/Auth';
+import { Leads } from './pages/Leads';
 import { clearApiConnection, getApiToken } from './lib/api';
 
 const mobileItems = [
@@ -17,6 +18,7 @@ const mobileItems = [
   { id: 'scanner', label: 'Quét', icon: Play },
   { id: 'history', label: 'Lịch sử', icon: Clock3 },
   { id: 'posts', label: 'Bài viết', icon: Database },
+  { id: 'leads', label: 'Lead', icon: Target },
   { id: 'settings', label: 'Cấu hình', icon: Settings },
 ];
 
@@ -29,6 +31,7 @@ export default function App() {
     if (active === 'posts') return <Posts />;
     if (active === 'scanner') return <Scanner />;
     if (active === 'history') return <History />;
+    if (active === 'leads') return <Leads />;
     if (active === 'settings') return <SettingsPage />;
     return <Dashboard />;
   };

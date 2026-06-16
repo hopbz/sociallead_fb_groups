@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
@@ -47,6 +48,14 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ''
     telegram_chat_id: str = ''
 
+    lead_score_threshold: int = 7
+    lead_niche_name: str = 'Dịch vụ địa phương'
+    lead_positive_keywords: str = 'cần tìm, tư vấn, báo giá, recommend, looking for'
+    lead_negative_keywords: str = 'đã mua, không cần, spam'
+    lead_comment_tone: str = 'Tự nhiên, hữu ích, lịch sự và không thúc ép inbox.'
+    lead_max_posts_per_group: int = 50
+    lead_scan_interval_minutes: int = 30
+
     google_sheets_enabled: bool = False
     google_sheets_spreadsheet_id: str = ''
     google_sheets_worksheet_name: str = 'Facebook Group Posts'
@@ -83,3 +92,39 @@ def get_settings() -> Settings:
     settings = Settings()
     settings.ensure_dirs()
     return settings
+
+
+class Config:
+    """
+    Cấu hình bổ sung cho stealth scraper — đọc từ biến môi trường.
+    Tách riêng khỏi Settings để không ảnh hưởng tới FastAPI app.
+    """
+
+    # Facebook credentials (để tự động login nếu chưa có session)
+    FB_EMAIL: str = os.environ.get('FB_EMAIL', '')
+    FB_PASSWORD: str = os.environ.get('FB_PASSWORD', '')
+
+    # CAPTCHA solver API keys (để trống nếu không dùng dịch vụ trả phí)
+    TWOCAPTCHA_API_KEY: str = os.environ.get('TWOCAPTCHA_API_KEY', '')
+    CAPSOLVER_API_KEY: str = os.environ.get('CAPSOLVER_API_KEY', '')
+
+    # Proxy list — cách nhau bằng dấu phẩy
+    PROXY_LIST: list[str] = [
+        p.strip()
+        for p in os.environ.get('PROXY_LIST', '').split(',')
+        if p.strip()
+    ]
+
+    # Headless mode (khuyến cáo False khi debug)
+    HEADLESS: bool = os.environ.get('HEADLESS', 'false').lower() == 'true'
+
+    # Thư mục lưu profile browser
+    PROFILE_DIR: str = os.environ.get('PROFILE_DIR', 'browser_profiles')
+
+    # Delay gõ phím (milliseconds)
+    TYPING_DELAY_MIN: int = 50
+    TYPING_DELAY_MAX: int = 200
+
+    # Delay cuộn trang (milliseconds)
+    SCROLL_DELAY_MIN: int = 800
+    SCROLL_DELAY_MAX: int = 2500

@@ -9,6 +9,11 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
 from app.browser.extractors import RawFacebookPost, make_post, pick_post_url
+from app.browser.post_dom_filter import (
+    TOP_LEVEL_POSTS_JS,
+    looks_like_comment,
+    normalize_facebook_text,
+)
 from app.config import Settings
 
 logger = logging.getLogger(__name__)
@@ -161,23 +166,22 @@ class PlaywrightFacebookGroupScraper:
 
     def _extract_visible_posts(self, page, group_url: str) -> dict[str, RawFacebookPost]:
         posts: dict[str, RawFacebookPost] = {}
-        cards = self._article_cards(page)
         try:
-            count = min(cards.count(), 80)
+            items = page.evaluate(TOP_LEVEL_POSTS_JS)
         except Exception:
+            logger.exception('Could not extract top-level posts from the DOM')
             return posts
 
-        for i in range(count):
-            card = cards.nth(i)
-            try:
-                text = card.inner_text(timeout=3000)
-                hrefs = card.locator('a[href]').evaluate_all('(els) => els.map(e => e.href).filter(Boolean)')
-                post_url = pick_post_url(hrefs)
-                post = make_post(group_url, text, post_url, self.engine)
-                if post:
-                    posts[post.post_id] = post
-            except Exception:
+        for item in items[:80]:
+            text = normalize_facebook_text(item.get('text'))
+            post_url = pick_post_url(item.get('hrefs') or [])
+            if looks_like_comment(text, post_url):
                 continue
+
+            post = make_post(group_url, text, post_url, self.engine)
+            if post:
+                posts[post.post_id] = post
+
         return posts
 
     def scrape_group(self, group_url: str, max_scrolls: int, max_posts: int, screenshot_dir: Path) -> list[RawFacebookPost]:

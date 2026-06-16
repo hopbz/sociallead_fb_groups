@@ -1,4 +1,4 @@
-import { Clock3, Database, Gauge, LogOut, Play, Radio, Settings, Users } from 'lucide-react';
+import { Clock3, Database, Gauge, LogOut, Play, Radio, Settings, Target, Users } from 'lucide-react';
 
 type Props = { active: string; setActive: (tab: string) => void; onLogout: () => void };
 
@@ -6,6 +6,7 @@ const items = [
   { id: 'dashboard', label: 'Tổng quan', icon: Gauge },
   { id: 'groups', label: 'Facebook Groups', icon: Users },
   { id: 'posts', label: 'Bài viết đã quét', icon: Database },
+  { id: 'leads', label: 'Lead tiềm năng', icon: Target },
   { id: 'scanner', label: 'Chạy quét', icon: Play },
   { id: 'history', label: 'Lịch sử quét', icon: Clock3 },
   { id: 'settings', label: 'Cấu hình', icon: Settings },

@@ -60,8 +60,38 @@ export type Dashboard = { groups_total: number; groups_active: number; keywords_
 export type EngineName = 'playwright' | 'seleniumbase' | 'cdp_playwright';
 export type RuntimeSettings = { default_engine: EngineName; headless: boolean; login_wait_timeout_seconds: number; facebook_latest_sorting: boolean; max_scrolls_per_group: number; max_posts_per_group: number; retry_times: number; scheduler_enabled: boolean; scheduler_interval_minutes: number; telegram_enabled: boolean; google_sheets_enabled: boolean; interactive_login_available: boolean; browser_login_url?: string | null };
 export type TelegramSettings = { enabled: boolean; chat_id: string; bot_token_configured: boolean };
+export type TelegramSettingsUpdate = { enabled: boolean; chat_id: string; bot_token?: string };
 export type ScanResponse = { run_id: string; status: string; engine: EngineName; groups_total: number; groups_success: number; groups_failed: number; posts_seen: number; posts_inserted: number; posts_matched: number; errors: string[] };
 export type LoginStatus = { engine: EngineName; logged_in: boolean; profile_dir: string; storage_state_file?: string | null; message?: string | null };
+export type LeadStatus = 'new' | 'reviewed' | 'contacted' | 'won' | 'lost';
+export type LeadCandidate = {
+  id: string;
+  post_id: string;
+  group_name?: string | null;
+  group_url?: string | null;
+  post_url?: string | null;
+  author?: string | null;
+  content: string;
+  score: number;
+  need_stage?: string | null;
+  persona?: string | null;
+  pain_points?: string | null;
+  reason?: string | null;
+  suggested_comment: string;
+  status: LeadStatus;
+  source: string;
+  created_at: string;
+  updated_at: string;
+};
+export type LeadScoringSettings = {
+  score_threshold: number;
+  niche_name: string;
+  positive_keywords: string[];
+  negative_keywords: string[];
+  comment_tone: string;
+  max_posts_per_group: number;
+  scan_interval_minutes: number;
+};
 
 export const api = {
   health: () => request<{ ok: boolean; app: string }>('/api/v1/health'),
@@ -78,12 +108,30 @@ export const api = {
   deleteKeyword: (id: string) => request<{ ok: boolean }>(`/api/v1/keywords/${id}`, { method: 'DELETE' }),
   posts: (q = '') => request<Post[]>(`/api/v1/posts?limit=100${q ? `&q=${encodeURIComponent(q)}` : ''}`),
   runs: () => request<Run[]>('/api/v1/runs?limit=100'),
+  clearRuns: () => request<{ ok: boolean; deleted: number }>('/api/v1/runs', { method: 'DELETE' }),
+  deleteRun: (id: string) => request<{ ok: boolean }>(`/api/v1/runs/${id}`, { method: 'DELETE' }),
   errors: () => request<ErrorLog[]>('/api/v1/errors?limit=100'),
   settings: () => request<RuntimeSettings>('/api/v1/settings'),
   telegramSettings: () => request<TelegramSettings>('/api/v1/telegram-settings'),
-  saveTelegramSettings: (payload: { enabled: boolean; chat_id: string }) => request<TelegramSettings>('/api/v1/telegram-settings', { method: 'PUT', body: JSON.stringify(payload) }),
+  saveTelegramSettings: (payload: TelegramSettingsUpdate) => request<TelegramSettings>('/api/v1/telegram-settings', { method: 'PUT', body: JSON.stringify(payload) }),
   testTelegram: () => request<{ ok: boolean; message: string }>('/api/v1/telegram-settings/test', { method: 'POST' }),
   loginStatus: (engine: EngineName) => request<LoginStatus>(`/api/v1/login-status/${engine}`),
   login: (engine: EngineName) => request<LoginStatus & { ok: boolean; message: string }>(`/api/v1/login/${engine}`, { method: 'POST' }),
   scan: (payload: { engine?: EngineName; max_scrolls?: number; max_posts_per_group?: number; send_telegram?: boolean; write_google_sheets?: boolean }) => request<ScanResponse>('/api/v1/scan-groups', { method: 'POST', body: JSON.stringify(payload) }),
+  leads: (params: { minScore?: number; status?: LeadStatus | ''; q?: string } = {}) => {
+    const search = new URLSearchParams({ limit: '300' });
+    if (params.minScore) search.set('min_score', String(params.minScore));
+    if (params.status) search.set('status', params.status);
+    if (params.q) search.set('q', params.q);
+    return request<LeadCandidate[]>(`/api/v1/leads?${search.toString()}`);
+  },
+  updateLeadStatus: (id: string, status: LeadStatus) => request<LeadCandidate>(`/api/v1/leads/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  }),
+  leadScoringSettings: () => request<LeadScoringSettings>('/api/v1/settings/lead-scoring'),
+  saveLeadScoringSettings: (payload: LeadScoringSettings) => request<LeadScoringSettings>('/api/v1/settings/lead-scoring', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  }),
 };

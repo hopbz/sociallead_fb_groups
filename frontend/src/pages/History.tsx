@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, Database, RefreshCw, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, Database, LoaderCircle, RefreshCw, Trash2, XCircle } from 'lucide-react';
 import { api, type ErrorLog, type Run } from '../lib/api';
 import { formatDate, useAsync } from '../lib/hooks';
 import { Empty, ErrorBox, Loading } from '../components/State';
@@ -30,6 +30,9 @@ export function History() {
     [],
   );
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
+  const [clearError, setClearError] = useState('');
+  const [clearSuccess, setClearSuccess] = useState('');
 
   const errorsByRun = useMemo(() => {
     const map = new Map<string, ErrorLog[]>();
@@ -39,6 +42,23 @@ export function History() {
     }
     return map;
   }, [data]);
+
+  async function handleClearAll() {
+    if (!window.confirm(`Bạn có chắc muốn xóa toàn bộ ${data?.runs.length ?? 0} lượt quét? Hành động này không thể hoàn tác.`)) return;
+    setClearing(true);
+    setClearError('');
+    setClearSuccess('');
+    try {
+      const result = await api.clearRuns();
+      setClearSuccess(`Đã xóa ${result.deleted} lượt quét thành công.`);
+      setExpanded(null);
+      await reload();
+    } catch (err) {
+      setClearError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setClearing(false);
+    }
+  }
 
   if (loading) return <Loading />;
   if (error || !data) return <ErrorBox message={error || 'Không thể tải lịch sử quét.'} />;
@@ -61,10 +81,31 @@ export function History() {
         <div className="card-premium p-5"><p className="text-xs text-[#66706d]">Bài viết đã lưu</p><p className="mt-2 text-3xl font-semibold">{insertedCount.toLocaleString('vi-VN')}</p></div>
       </div>
 
+      {clearError && <div className="mt-4"><ErrorBox message={clearError} /></div>}
+      {clearSuccess && (
+        <div className="mt-4 rounded-xl border border-[#b9ddd4] bg-[#eef9f6] p-3 text-xs font-semibold text-[#17685f]">
+          {clearSuccess}
+        </div>
+      )}
+
       <section className="card-premium mt-5 overflow-hidden">
         <div className="flex items-center justify-between border-b border-[#e4e7e1] px-5 py-4">
           <div><p className="text-sm font-semibold">Các lượt quét gần đây</p><p className="mt-1 text-[11px] text-[#89918e]">Hiển thị tối đa 100 lượt gần nhất</p></div>
-          <button className="btn-soft !px-3 !py-2" onClick={reload}><RefreshCw size={15} />Làm mới</button>
+          <div className="flex items-center gap-2">
+            {data.runs.length > 0 && (
+              <button
+                id="clear-history-btn"
+                className="btn-soft !border-[#efc7c2] !bg-[#fff4f2] !text-[#a33f38] !px-3 !py-2"
+                onClick={() => void handleClearAll()}
+                disabled={clearing}
+                title="Xóa toàn bộ lịch sử quét"
+              >
+                {clearing ? <LoaderCircle size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                Xóa lịch sử
+              </button>
+            )}
+            <button className="btn-soft !px-3 !py-2" onClick={reload}><RefreshCw size={15} />Làm mới</button>
+          </div>
         </div>
 
         {data.runs.length ? (

@@ -5,6 +5,7 @@
 *.env.*
 **/.env
 **/.env.*
+!/.env.example
 **/service_account.json
 **/*credentials*.json
 **/*secret*.json
@@ -56,6 +57,8 @@ backend/data/*.db
 backend/data/*.sqlite
 backend/data/*.sqlite3
 backend/data/*.db-*
+backend/*_backup_*.db
+database/backups/*.dump
 data/
 latest_logs/
 archived_logs/

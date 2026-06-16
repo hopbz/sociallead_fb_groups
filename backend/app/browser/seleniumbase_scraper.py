@@ -6,6 +6,7 @@ from pathlib import Path
 from seleniumbase import SB
 
 from app.browser.extractors import RawFacebookPost, make_post, pick_post_url
+from app.browser.post_dom_filter import looks_like_comment, normalize_facebook_text
 from app.config import Settings
 
 logger = logging.getLogger(__name__)
@@ -92,13 +93,24 @@ class SeleniumBaseFacebookGroupScraper:
                         if len(posts) >= max_posts:
                             break
                         try:
-                            text = card.text
+                            parent_article = sb.execute_script(
+                                "return arguments[0].parentElement"
+                                "  ? arguments[0].parentElement.closest('[role=\"article\"]')"
+                                "  : null;",
+                                card,
+                            )
+                            if parent_article:
+                                continue
+
+                            text = normalize_facebook_text(card.text)
                             links = card.find_elements('css selector', 'a[href]')
                             hrefs = [
                                 a.get_attribute('href') for a in links
                                 if a.get_attribute('href')
                             ]
                             post_url = pick_post_url(hrefs)
+                            if looks_like_comment(text, post_url):
+                                continue
                             post = make_post(group_url, text, post_url, self.engine)
                             if post:
                                 posts[post.post_id] = post

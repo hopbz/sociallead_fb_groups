@@ -1,9 +1,26 @@
 import { useEffect, useState } from 'react';
 import { ExternalLink, Search } from 'lucide-react';
 import { api } from '../lib/api';
+import type { Post } from '../lib/api';
 import { useAsync, formatDate } from '../lib/hooks';
 import { Topbar } from '../components/Topbar';
 import { Empty, ErrorBox, Loading } from '../components/State';
+
+function looksLikeCommentOnClient(post: Post): boolean {
+  const text = post.content || '';
+  const url = post.post_url || '';
+
+  const hasCommentUrl =
+    /comment_id=|reply_comment_id=|comment_tracking=|\/comments?\//i.test(url);
+  const hasCommentAction = /(Thích|Like)\s+(Trả lời|Reply)/i.test(text);
+  const hasPostAction = /(Bình luận|Comment)\s+(Chia sẻ|Share)/i.test(text);
+  const shortReplyLikeText =
+    text.length < 350 &&
+    /(Xem bản dịch|See translation)/i.test(text) &&
+    /(Trả lời|Reply)/i.test(text);
+
+  return hasCommentUrl || (hasCommentAction && !hasPostAction) || shortReplyLikeText;
+}
 
 export function Posts() {
   const [query, setQuery] = useState('');
@@ -14,6 +31,8 @@ export function Posts() {
     const timer = window.setTimeout(() => setSearchQuery(query.trim()), 300);
     return () => window.clearTimeout(timer);
   }, [query]);
+
+  const visiblePosts = (data ?? []).filter(post => !looksLikeCommentOnClient(post));
 
   return (
     <div>
@@ -31,9 +50,9 @@ export function Posts() {
           />
         </div>
       </div>
-      {loading ? <Loading /> : error ? <ErrorBox message={error} /> : data?.length ? (
+      {loading ? <Loading /> : error ? <ErrorBox message={error} /> : visiblePosts.length ? (
         <div className="space-y-4">
-          {data.map((post, index) => (
+          {visiblePosts.map((post, index) => (
             <article key={post.id} className="card-premium interactive-card row-reveal p-5 md:p-6" style={{ '--row-index': index } as React.CSSProperties}>
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>

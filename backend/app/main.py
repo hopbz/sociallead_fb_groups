@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.lead_routes import router as lead_router
 from app.api.routes import router
 from app.config import get_settings
 from app.db.session import init_db
@@ -32,6 +33,7 @@ app.add_middleware(
     allow_headers=['*'],
 )
 app.include_router(router)
+app.include_router(lead_router)
 
 
 @app.get('/')

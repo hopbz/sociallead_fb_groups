@@ -85,8 +85,40 @@ class ScrapedPost(Base):
     engine: Mapped[str] = mapped_column(String(32), nullable=False)
     scraped_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
 
     run: Mapped[ScanRun | None] = relationship(back_populates='posts')
+
+
+class LeadCandidate(Base):
+    __tablename__ = 'lead_candidates'
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uuid_str)
+    post_id: Mapped[str] = mapped_column(String(36), unique=True, nullable=False, index=True)
+    group_name: Mapped[str | None] = mapped_column(String(255))
+    group_url: Mapped[str | None] = mapped_column(Text)
+    post_url: Mapped[str | None] = mapped_column(Text)
+    author: Mapped[str | None] = mapped_column(String(255))
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    score: Mapped[int] = mapped_column(Integer, nullable=False)
+    need_stage: Mapped[str | None] = mapped_column(String(32))
+    persona: Mapped[str | None] = mapped_column(String(255))
+    pain_points: Mapped[str | None] = mapped_column(Text)
+    reason: Mapped[str | None] = mapped_column(Text)
+    suggested_comment: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), default='new', nullable=False, index=True)
+    source: Mapped[str] = mapped_column(String(64), default='facebook_group', nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
 
 
 class ErrorLog(Base):

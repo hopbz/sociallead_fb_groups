@@ -7,6 +7,7 @@ import requests
 from sqlalchemy.orm import Session
 
 from app.config import Settings
+from app.core.env_file import update_env_file
 from app.db.models import AppSetting, ScrapedPost
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,14 @@ def get_telegram_settings(settings: Settings, db: Session) -> dict[str, object]:
     }
 
 
-def save_telegram_settings(db: Session, *, enabled: bool, chat_id: str) -> None:
+def save_telegram_settings(
+    db: Session,
+    *,
+    enabled: bool,
+    chat_id: str,
+    bot_token: str | None = None,
+    persist_env: bool = False,
+) -> None:
     values = {
         TELEGRAM_ENABLED_KEY: 'true' if enabled else 'false',
         TELEGRAM_CHAT_ID_KEY: chat_id.strip(),
@@ -42,6 +50,15 @@ def save_telegram_settings(db: Session, *, enabled: bool, chat_id: str) -> None:
         else:
             db.add(AppSetting(key=key, value=value))
     db.commit()
+
+    if persist_env:
+        env_values: dict[str, object] = {
+            'TELEGRAM_ENABLED': enabled,
+            'TELEGRAM_CHAT_ID': chat_id.strip(),
+        }
+        if bot_token is not None:
+            env_values['TELEGRAM_BOT_TOKEN'] = bot_token.strip()
+        update_env_file(env_values)
 
 
 def send_telegram_message(settings: Settings, chat_id: str, text: str) -> None:

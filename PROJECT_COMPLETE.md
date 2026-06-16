@@ -158,7 +158,7 @@ npm run dev
 ### Step 5: Access the Application
 - **Frontend:** http://localhost:3000 (Login with token)
 - **Backend API:** http://localhost:3001/docs
-- **API Token:** `YsLS7X_wdy1ahvcpxs5WMf7TCui4qnoxl31KwWWLvwo`
+- **API Token:** giá trị ngẫu nhiên do người vận hành cấu hình trong `.env`.
 
 ### Step 6: Start Scraping
 1. Add Facebook Groups (Settings → Groups)

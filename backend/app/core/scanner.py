@@ -14,6 +14,7 @@ from app.browser.seleniumbase_scraper import SeleniumBaseFacebookGroupScraper
 from app.config import Settings
 from app.core.csv_writer import append_posts_to_csv
 from app.core.keyword_filter import match_keywords, normalize_keywords
+from app.core.lead_scoring_settings import get_lead_scoring_settings
 from app.db.models import ErrorLog, GroupSource, Keyword, ScanRun, ScrapedPost
 from app.integrations.google_sheets import write_posts_to_google_sheets
 from app.integrations.telegram import send_telegram_posts
@@ -110,7 +111,8 @@ class FacebookGroupScanner:
     def scan(self, request: ScanRequest) -> ScanResponse:
         engine = request.engine or self.settings.default_engine
         max_scrolls = request.max_scrolls or self.settings.max_scrolls_per_group
-        max_posts = request.max_posts_per_group or self.settings.max_posts_per_group
+        scoring_settings = get_lead_scoring_settings(self.settings, self.db)
+        max_posts = request.max_posts_per_group or int(scoring_settings['max_posts_per_group'])
         groups = self._group_urls(request)
         keywords = self._keywords(request)
 

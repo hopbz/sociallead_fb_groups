@@ -15,6 +15,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from app.browser.extractors import RawFacebookPost, make_post, pick_post_url
+from app.browser.post_dom_filter import looks_like_comment, normalize_facebook_text
 from app.config import Settings
 
 logger = logging.getLogger(__name__)
@@ -350,6 +351,15 @@ class AdvancedFacebookScraper:
                     if len(posts_result) >= max_posts:
                         break
 
+                    parent_article = self.sb.execute_script(
+                        "return arguments[0].parentElement"
+                        "  ? arguments[0].parentElement.closest('[role=\"article\"]')"
+                        "  : null;",
+                        article,
+                    )
+                    if parent_article:
+                        continue
+
                     # Lấy dữ liệu đầy đủ
                     data = self._extract_full_post_data(article, group_url)
                     if not data:
@@ -359,6 +369,9 @@ class AdvancedFacebookScraper:
                     hrefs = [a.get_attribute('href') for a in article.find_elements(By.CSS_SELECTOR, 'a[href]') if a.get_attribute('href')]
                     post_url = pick_post_url(hrefs)
                     data['post_url'] = post_url
+                    data['content'] = normalize_facebook_text(data['content'])
+                    if looks_like_comment(data['content'], post_url):
+                        continue
 
                     # Tạo post_id (dùng hàm extract_post_id từ extractors)
                     from app.browser.extractors import extract_post_id
